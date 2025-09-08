@@ -1,7 +1,6 @@
 services:
   etl:
     build: .
-    container_name: etl-pipeline
+    working_dir: /app
     volumes:
-      - ./data:/app/data
-      - ./output:/app/output
+      - .:/app

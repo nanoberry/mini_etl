@@ -2,6 +2,7 @@ import duckdb
 from prefect import flow, task, get_run_logger
 import uuid
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 import os 
 import typer
 
@@ -13,8 +14,7 @@ class Settings(BaseSettings):
     output_dir: str
     db_path: str = "pipeline.duckdb"
 
-    class Config:
-        env_file = ".env"
+    model_config = ConfigDict(env_file=".env")
 
 @task(retries=3, retry_delay_seconds=10)
 def init_tables(db_path: str, schema_file: str = "table_schemas.sql"):
@@ -24,7 +24,7 @@ def init_tables(db_path: str, schema_file: str = "table_schemas.sql"):
         con.execute(schema_sql)
 
 @task(retries=3, retry_delay_seconds=10)
-def extract(csv_path: str, pipeline_id: str, db_path: str, extract_id: str | None = None) -> str:
+def extract(csv_path: str, pipeline_id: str , db_path: str, extract_id: str | None = None) -> str:
     extract_id = extract_id or new_id()
     logger = get_run_logger()
 
@@ -108,11 +108,13 @@ def load(db_path: str, out_dir: str, pipeline_id: str, transform_id: str, load_i
     return out_path
 
 @flow
-def etl_pipeline(csv_path: str, out_dir: str, db_path: str = "pipeline.duckdb", pipeline_id: str = new_id()):
+def etl_pipeline(csv_path: str, out_dir: str, db_path: str = "pipeline.duckdb", pipeline_id: str | None = None, extract_id: str | None = None, transform_id: str | None = None, load_id: str | None = None):
     init_tables(db_path=db_path)
-    extract_id = extract(csv_path=csv_path, pipeline_id=pipeline_id, db_path=db_path)
-    transform_id = transform(pipeline_id=pipeline_id, extract_id=extract_id, db_path=db_path)
-    load(pipeline_id=pipeline_id, transform_id=transform_id, out_dir=out_dir, db_path=db_path)
+    pipeline_id = pipeline_id or new_id()
+    extract_id = extract(csv_path=csv_path, pipeline_id=pipeline_id, db_path=db_path, extract_id=extract_id)
+    transform_id = transform(pipeline_id=pipeline_id, extract_id=extract_id, db_path=db_path, transform_id=transform_id)
+    loaded_file_path = load(pipeline_id=pipeline_id, transform_id=transform_id, out_dir=out_dir, db_path=db_path, load_id=load_id)
+    return loaded_file_path
 
 def main(
     input_file: str = typer.Argument(..., help="Path to input CSV file"),
