@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 from pathlib import Path
 from datetime import datetime, timedelta
-from src.top_10 import etl_pipeline 
+from src.top_10 import collect_top_data_flow 
 
 
 @pytest.fixture
@@ -35,7 +35,7 @@ def test_etl_pipeline_top10(tmp_path: Path, sample_sales_csv):
     out_dir.mkdir()
     db_path = tmp_path / "test.duckdb"
 
-    etl_pipeline(
+    collect_top_data_flow(
         csv_path=str(csv_path),
         out_dir=str(out_dir),
         db_path=str(db_path),

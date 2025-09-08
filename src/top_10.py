@@ -2,7 +2,6 @@ import duckdb
 from prefect import flow, task, get_run_logger
 import uuid
 from pydantic_settings import BaseSettings
-from pydantic import ConfigDict
 import os 
 import typer
 
@@ -22,7 +21,7 @@ def init_tables(db_path: str, schema_file: str = "table_schemas.sql"):
         con.execute(schema_sql)
 
 @task(retries=3, retry_delay_seconds=10)
-def extract(csv_path: str, pipeline_id: str , db_path: str, extract_id: str | None = None) -> str:
+def insert_data_to_db(csv_path: str, pipeline_id: str , db_path: str, extract_id: str | None = None) -> str:
     extract_id = extract_id or new_id()
     logger = get_run_logger()
 
@@ -53,7 +52,7 @@ def extract(csv_path: str, pipeline_id: str , db_path: str, extract_id: str | No
     return extract_id
 
 @task(retries=3, retry_delay_seconds=10)
-def transform(db_path: str, pipeline_id: str, extract_id: str, transform_id: str | None = None) -> str:
+def get_top_10_by_revenue(db_path: str, pipeline_id: str, extract_id: str, transform_id: str | None = None) -> str:
     transform_id = transform_id or new_id()
     logger = get_run_logger()
     logger.info(f"[{pipeline_id} | {transform_id}] Transforming data for extract {extract_id}")
@@ -81,7 +80,7 @@ def transform(db_path: str, pipeline_id: str, extract_id: str, transform_id: str
     return transform_id
 
 @task(retries=3, retry_delay_seconds=10)
-def load(db_path: str, out_dir: str, pipeline_id: str, transform_id: str, load_id: str | None = None) -> str:
+def load_top_data(db_path: str, out_dir: str, pipeline_id: str, transform_id: str, load_id: str | None = None) -> str:
     load_id = load_id or new_id()
 
     logger = get_run_logger()
@@ -106,12 +105,12 @@ def load(db_path: str, out_dir: str, pipeline_id: str, transform_id: str, load_i
     return out_path
 
 @flow
-def etl_pipeline(csv_path: str, out_dir: str, db_path: str = "pipeline.duckdb", pipeline_id: str | None = None, extract_id: str | None = None, transform_id: str | None = None, load_id: str | None = None):
+def collect_top_data_flow(csv_path: str, out_dir: str, db_path: str = "pipeline.duckdb", pipeline_id: str | None = None, extract_id: str | None = None, transform_id: str | None = None, load_id: str | None = None):
     init_tables(db_path=db_path)
     pipeline_id = pipeline_id or new_id()
-    extract_id = extract(csv_path=csv_path, pipeline_id=pipeline_id, db_path=db_path, extract_id=extract_id)
-    transform_id = transform(pipeline_id=pipeline_id, extract_id=extract_id, db_path=db_path, transform_id=transform_id)
-    loaded_file_path = load(pipeline_id=pipeline_id, transform_id=transform_id, out_dir=out_dir, db_path=db_path, load_id=load_id)
+    extract_id = insert_data_to_db(csv_path=csv_path, pipeline_id=pipeline_id, db_path=db_path, extract_id=extract_id)
+    transform_id = get_top_10_by_revenue(pipeline_id=pipeline_id, extract_id=extract_id, db_path=db_path, transform_id=transform_id)
+    loaded_file_path = load_top_data(pipeline_id=pipeline_id, transform_id=transform_id, out_dir=out_dir, db_path=db_path, load_id=load_id)
     return loaded_file_path
 
 def main(
@@ -120,7 +119,7 @@ def main(
 ):
     global settings
     settings = Settings(input_file=input_file, output_dir=output_dir)
-    etl_pipeline(settings.input_file, settings.output_dir)
+    collect_top_data_flow(settings.input_file, settings.output_dir)
 
 
 if __name__ == "__main__":
