@@ -1,0 +1,7 @@
+services:
+  etl:
+    build: .
+    container_name: etl-pipeline
+    volumes:
+      - ./data:/app/data
+      - ./output:/app/output
