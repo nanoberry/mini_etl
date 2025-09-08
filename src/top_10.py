@@ -14,8 +14,6 @@ class Settings(BaseSettings):
     output_dir: str
     db_path: str = "pipeline.duckdb"
 
-    model_config = ConfigDict(env_file=".env")
-
 @task(retries=3, retry_delay_seconds=10)
 def init_tables(db_path: str, schema_file: str = "table_schemas.sql"):
     with open(schema_file, "r") as f:
