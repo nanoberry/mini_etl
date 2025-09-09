@@ -8,7 +8,7 @@ import typer
 def new_id():
     return str(uuid.uuid4())
 
-class Settings(BaseSettings):
+class Settings(BaseSettings, cli_parse_args=True):
     input_file: str
     output_dir: str
     db_path: str = "pipeline.duckdb"
@@ -114,13 +114,11 @@ def collect_top_data_flow(csv_path: str, out_dir: str, db_path: str = "pipeline.
     return loaded_file_path
 
 def main(
-    input_file: str = typer.Argument(..., help="Path to input CSV file"),
-    output_dir: str = typer.Argument(..., help="Directory to store outputs")
 ):
     global settings
-    settings = Settings(input_file=input_file, output_dir=output_dir)
-    collect_top_data_flow(settings.input_file, settings.output_dir)
+    settings = Settings()
+    collect_top_data_flow(csv_path = settings.input_file, out_dir = settings.output_dir, db_path=settings.db_path)
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    main()
