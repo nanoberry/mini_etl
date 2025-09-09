@@ -3,7 +3,6 @@ from prefect import flow, task, get_run_logger
 import uuid
 from pydantic_settings import BaseSettings
 import os 
-import typer
 
 def new_id():
     return str(uuid.uuid4())
